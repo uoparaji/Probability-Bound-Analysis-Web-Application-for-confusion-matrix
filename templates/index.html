@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>e-Doctor</title>
+<h1 align="center">Interval & Confidence Box Robust Bayes Calculator for Medical Test</h1>
+<link rel="stylesheet" media="screen" href ="static/bootstrap.min.css">
+<link rel="stylesheet" href="static/bootstrap-theme.min.css">
+<meta name="viewport" content = "width=device-width, initial-scale=1.0">
+       
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script src="{{ url_for('static', filename='js/cbox.js') }}"></script>
+
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+
+<script type=text/javascript>
+function calcFromCounts() {
+    var ucOne = new UCValue(1, 1);
+    var tp = parseUCValue(document.getElementById("TP").value);
+    var fp = parseUCValue(document.getElementById("FP").value);
+    var fn = parseUCValue(document.getElementById("FN").value);
+    var tn = parseUCValue(document.getElementById("TN").value);
+    
+    var prevtype = document.getElementById("prevType").value;
+    
+    prevtype_eval = eval(prevtype)
+        
+    var prev = parseUCValue(document.getElementById("prev").value);
+    prev_eval = eval(prev);
+    
+    ucPrev = new UCValue(prev_eval['left'], prev_eval['right']);
+    
+    
+    
+    
+    var se = UCDivide(ucOne, UCAdd(ucOne, UCDivide(fn, tp)));
+
+    var sp = UCDivide(ucOne, UCAdd(ucOne, UCDivide(fp, tn)));
+
+
+    var fpr = UCDivide(ucOne, UCAdd(ucOne,UCDivide(tn,fp)));   
+    var npv = UCDivide(ucOne, UCAdd(ucOne, UCDivide(fn, tn))); 
+    
+    var fnr = UCDivide(ucOne, UCAdd(ucOne,UCDivide(tp,fn)));
+    var plr = UCDivide(se, UCSubtract(ucOne, sp));
+    var nlr = UCDivide(UCSubtract(ucOne, se), sp);
+    
+    var ppv = UCDivide(ucOne, UCAdd(ucOne, UCDivide(fp, tp)));
+
+    
+    constantPPV = UCDivide(UCMultiply(UCSubtract(UCDivide(ucOne, ucPrev), ucOne),
+     UCSubtract(ucOne, sp)), se);
+     
+    constantNPV = UCDivide(UCMultiply(UCSubtract(UCDivide(ucOne, ucPrev), ucOne),
+     UCSubtract(ucOne, se)), sp);
+    
+    if (prevtype_eval == 'interval') {
+    var ppvNorm = UCDivide(ucOne, UCAdd(constantPPV, ucOne));
+    var npvNorm = UCDivide(ucOne, UCAdd(constantNPV, ucOne));
+
+    }
+    
+    else if (prevtype_eval == 'cbox') {window.alert("Prevelence type cannot be a cbox using the classical approach. Please chance prevelence type to an interval.");
+    }
+    
+    
+    // chart 1
+    google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
+
+      function drawChart() {
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'x');
+        data.addColumn('number', 'values');
+        data.addColumn({id:'i0', type:'number', role:'interval'});
+        data.addColumn({id:'i1', type:'number', role:'interval'});
+        data.addRows([
+            ['Sen', (se.left +se.right)/2, se.left, se.right],
+            ['Spe', (sp.left +sp.right)/2, sp.left, sp.right],
+            ['PPV1', (ppv.left +ppv.right)/2, ppv.left, ppv.right],
+            ['PPV2', (ppvNorm.left+ppvNorm.right)/2, ppvNorm.left, ppvNorm.right],
+            ['FPR', (fpr.left +fpr.right)/2, fpr.left, fpr.right],
+            ['FNR', (fnr.left +fnr.right)/2, fnr.left, fnr.right],
+            ['NPV1', (npv.left +npv.right)/2, npv.left, npv.right],
+            ['NPV2', (npvNorm.left +npvNorm.right)/2, npvNorm.left, npvNorm.right],
+            ['PLR', (plr.left +plr.right)/2, plr.left, plr.right],
+            ['NLR', (nlr.left +nlr.right)/2, nlr.left, nlr.right]]);
+  
+        // The intervals data as narrow lines (useful for showing raw source data)
+        /*var options = {
+        vAxis: {viewWindow: {min: 0,max: 3},},
+        
+        chartArea: {
+        backgroundColor: {
+            stroke: '#000000',
+            strokeWidth: 3
+                       }
+                   },
+        
+        curveType:'function',
+        lineWidth: 4,
+        series: [{'color': '#1A8763'}],
+        intervals: { 'lineWidth':2, 'barWidth': 0.5, style: 'boxes' },
+        legend: 'none',
+    };*/
+     var options_boxes_background = {
+     
+     'chartArea': {
+    'backgroundColor': {
+        'fill': '#F4F4F4',
+        'opacity': 100
+     },
+       },
+       vAxis: {
+          title: 'values'
+        },
+        
+        hAxis : { 
+        textStyle : {
+            fontSize: 20, 
+            titleFontSize: 20
+        }
+
+    },
+        title: 'Classical Approach',
+        titleTextStyle: {
+      color: '#000000',
+      fontName: 'Arial ',
+      fontSize: 20
+    },
+          titlePosition: 'right',
+
+
+        curveType:'function',
+        lineWidth: 4,
+        series: [{'color': '#1A8763'}],
+        intervals: { 'lineWidth':2, 'barWidth': 0.5 },
+        interval: {
+            'i2': { 'style':'boxes', 'color':'grey', 'boxWidth': 2.5,
+            'lineWidth': 0, 'fillOpacity': 0.2 }
+        },
+        legend: 'none',
+    };
+  
+        var chart_lines = new google.visualization.LineChart(document.getElementById('chart_lines'));
+        chart_lines.draw(data, options_boxes_background);
+      }
+    
+    
+    // end chart 1
+        
+    // Lower bounds
+    document.getElementById("SeLower").value = se.left;
+    document.getElementById("SpLower").value = sp.left;
+    document.getElementById("PPVLower").value = ppv.left;
+    document.getElementById("PPVLower2").value = ppvNorm.left;
+
+    document.getElementById("FPRLower").value = fpr.left;
+    document.getElementById("NPVLower").value = npv.left;
+    document.getElementById("NPVLower2").value = npvNorm.left;
+
+    document.getElementById("FNRLower").value = fnr.left;
+    document.getElementById("PLRLower").value = plr.left;
+    document.getElementById("NLRLower").value = nlr.left;
+    // Upper bounds
+    document.getElementById("SeUpper").value = se.right;
+    document.getElementById("SpUpper").value = sp.right;
+    document.getElementById("PPVUpper").value = ppv.right;
+    document.getElementById("PPVUpper2").value = ppvNorm.right;
+
+    document.getElementById("FPRUpper").value = fpr.right;
+    document.getElementById("NPVUpper").value = npv.right;
+    document.getElementById("NPVUpper2").value = npvNorm.right;
+
+    document.getElementById("FNRUpper").value = fnr.right;
+    document.getElementById("PLRUpper").value = plr.right;
+    document.getElementById("NLRUpper").value = nlr.right;
+
+}
+      
+function UCValue(left, right) {
+  if (left > right) {
+      alert("ERROR: Intervals must have a left endpoint less than the right endpoint: [" + left + "," + right + "] is invalid.");   
+  }
+  this.left = left;
+  this.right = right;
+}
+
+
+function parseUCValue(str) {
+  var bHasL = false;
+  var bHasR = false;
+
+  for(var i=0; i < str.length; i++) {
+     if (str[i] == "[") {
+        bHasL = true;
+     }
+     if (str[i] == "]") {
+	bHasR = true;
+     }
+  }
+  if ((bHasL == true && bHasR == false) || (bHasL == false && bHasR == true)) {
+      alert("Invalid entry of interval, you must express intervals as \"[a,b]\". Your entry of \"" + str + "\" is incomplete.");
+  }
+  if (bHasL && bHasR) {
+    toks = str.split(",");
+    sA = toks[0].replace("[", "").replace(" ", "");
+    sB = toks[1].replace("]", "").replace(" ", "");
+    nA = parseFloat(sA);
+    nB = parseFloat(sB);
+    return new UCValue(nA/100, nB/100);  
+  } else {
+    str = str.replace(" ", "");
+    nVal = parseFloat(str);
+    return new UCValue(nVal/100, nVal/100);    		   
+  }
+}
+// add intervals
+function UCAdd(ucX, ucY) {
+    return new UCValue(ucX.left + ucY.left, ucX.right + ucY.right);
+}
+
+// subtract intervals
+function UCSubtract(ucX, ucY) {
+    return new UCValue(ucX.left - ucY.right, ucX.right - ucY.left);
+}
+
+// multiply intervals
+function UCMultiply(ucX, ucY) {
+    a = Math.min(ucX.left*ucY.left, ucX.left*ucY.right, ucX.right*ucY.left, ucX.right*ucY.right);
+    b = Math.max(ucX.left*ucY.left, ucX.left*ucY.right, ucX.right*ucY.left, ucX.right*ucY.right);
+    return new UCValue(a, b);
+}
+
+// divide intervals
+function UCDivide(ucX, ucY) {
+    if ((ucY.left == 0) || (ucY.right == 0)) {
+        alert("ERROR: Division by zero.");
+    }
+    var ucYnum = new UCValue(1/ucY.right, 1/ucY.left);
+    return UCMultiply(ucX, ucYnum);
+}
+  
+</script> 
+
+<style>
+
+#wgtmsr{
+ width:200px;
+ height: 30px;   
+}
+
+table {
+  table-layout: fixed;
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 50%;
+}
+
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+
+
+
+h2 { color: #00000; font-family: 'Droid serif', serif; font-size: 30px; 
+font-weight: 400; font-style: italic; line-height: 44px; margin: 0 0 12px; 
+text-align: center;
+margin-bottom: 0;
+padding-bottom: 0; }
+
+// style
+body {
+   margin:30px;
+}
+
+a {
+   color:blue;
+   cursor:pointer;
+}
+
+
+table.data {
+    border-width: 4px;
+    border-spacing: 4px;
+    border-style: groove;
+    border-color: gray;
+    border-collapse: separate;
+
+}
+
+</style>
+
+</head>
+<body> 
+
+<form class="form-inline">
+
+<div >
+    <br></br>
+    <div>
+    <table align="center" class="data" border="3">
+    <tr><th>&nbsp;</th>
+      <th>Disease</th>
+      <th>No Disease</th>
+    </tr>
+    <tr>
+      <th>Positive Test</th>
+      <td>True +ve: <input type="text" class="form-control" id="TP" value="[200, 300]"  style="text-align:center" placeholder="Enter true positive value."/></td> 
+      <td>False +ve: <input type="text" class="form-control" id="FP" value="[7, 10]"  style="text-align:center" placeholder="Enter false positive value."/></td>
+    </tr>
+    <tr>
+      <th>Negative Test</th>
+      <td>False -ve: <input type="text" class="form-control" id="FN" value="6" style="text-align:center" placeholder="Enter false negative value."/></td>
+      <td>True -ve: <input type="text" class="form-control" id="TN" value="5" style="text-align:center" placeholder="Enter true negative value."/></td>
+    </tr>
+    <tr>
+      <th>Prevelance</th>
+      <td>Type of Data:
+       <input type="text" class="form-control" id="prevType" value="'interval'" style="text-align:center" placeholder="Enter prev type e.g cbox, interval, float."/>
+      </td> 
+      <td>Value of Prevelance:<input type="text" class="form-control" id="prev" value="[0.001, 0.004]"  style="text-align:center" placeholder="Enter value of prevelance."/></td>
+    </tr>
+    
+    </table>
+    </div>
+    
+</div>
+
+    <div class="wrapper">
+    <br></br>
+    <div id="s3" class="section">
+    <table align="center" class="data" border="3">
+    <tr>
+        <td align="centre"><button type="button" class="btn btn-default" onclick="calcFromCounts()">Classic Approach</button></td>
+        <td><button type="submit" class="btn btn-default">Cbox Approach</button></td>
+    
+    </tr>
+    
+    </table>
+
+    <br></br>
+    
+    <h2 align="center">Classic Approach</h2>
+
+    <table align="center" class="data" style="table-layout:fixed;" border="3">
+        <tr>
+            <th></th>
+            <th>Lower Bound</th>
+            <th>Upper Bound</th>
+    
+        </tr>	    
+        <tr>
+            <th>Sensitivity</th>
+            <th><output type="textfield" id="SeLower" align="center"></output></th>
+            <th><output type="textfield" id="SeUpper" align="center"></output></th>
+        </tr>
+        <tr>
+            <th>Specificity</th>
+            <th><output type="textfield" id="SpLower" align="center"></output></th>
+            <th><output type="textfield" id="SpUpper" align="center"></output></th>
+        </tr>
+        <tr>
+            <th>Positive Predicted Value 1</th>
+            <th><output type="textfield" id= "PPVLower" align="center"></output></th>
+            <th><output type="textfield" id="PPVUpper" align="center"></output></th>
+        </tr>
+        
+        <tr>
+            <th>Positive Predicted Value 2</th>
+            <th><output type="textfield" id= "PPVLower2" align="center"></output></th>
+            <th><output type="textfield" id="PPVUpper2" align="center"></output></th>
+        </tr>
+        
+        <tr>
+            <th>False positive rate (alpha)</th>
+            <th><output type="textfield" id= "FPRLower" align="center"></output></th>
+            <th><output type="textfield" id="FPRUpper" align="center"></output></th>
+        </tr>
+    
+        <tr>
+            <th>False negative rate (beta)</th>
+            <th><output type="textfield" id= "FNRLower" align="center"></output></th>
+            <th><output type="textfield" id="FNRUpper" align="center"></output></th>
+        </tr>
+    
+        <tr>
+            <th>Negative predictive value 1</th>
+            <th><output type="textfield" id= "NPVLower" align="center"></output></th>
+            <th><output type="textfield" id="NPVUpper" align="center"></output></th>
+        </tr>
+        
+        <tr>
+            <th>Negative predictive value 2</th>
+            <th><output type="textfield" id= "NPVLower2" align="center"></output></th>
+            <th><output type="textfield" id="NPVUpper2" align="center"></output></th>
+        </tr>
+    
+        <tr>
+            <th>Positive Liklihood Ratio</th>
+            <th><output type="textfield" id= "PLRLower" align="center"></output></th>
+            <th><output type="textfield" id="PLRUpper" align="center"></output></th>
+        </tr>
+        
+        <tr>
+            <th>Negative Liklihood Ratio</th>
+            <th><output type="textfield" id= "NLRLower" align="center"></output></th>
+            <th><output type="textfield" id="NLRUpper" align="center"></output></th>
+        </tr>
+    </table>
+    <br></br>
+</form>
+ <div id="chart_lines" align="center" style="width: 1000px;height: 500px; margin:0 auto;"></div>
+
+<br></br>
+
+<h2 align="center">Confidence Box Approach</h2>
+    <table align="center" class="data" style="table-layout:fixed;" border="3">
+        <tr>
+            <th></th>
+            <th>Lower Bound</th>
+            <th>Upper Bound</th>
+    
+        </tr>	    
+        <tr>
+            <th>Sensitivity C.Box</th>
+            <th><output type="textfield" id="output" align="center"></output></th>
+            <th><output type="textfield" id="output1" align="center"></output></th>
+        </tr>
+        <tr>
+            <th>Specificity C.Box</th>
+            <th><output type="textfield" id="output2" align="center"></output></th>
+            <th><output type="textfield" id="output3" align="center"></output></th>
+        </tr>
+        <tr>
+            <th>Prevelance C.Box</th>
+            <th><output type="textfield" id= "output4" align="center"></output></th>
+            <th><output type="textfield" id="output5" align="center"></output></th>
+        </tr>
+        <tr>
+            <th>PPV 1 C.Box</th>
+            <th><output type="textfield" id= "output6" align="center"></output></th>
+            <th><output type="textfield" id="output7" align="center"></output></th>
+        </tr>
+        
+        <tr>
+            <th>PPV 2 C.Box</th>
+            <th><output type="textfield" id= "ppv_lower" align="center"></output></th>
+            <th><output type="textfield" id="ppv_upper" align="center"></output></th>
+        </tr>
+        
+        <tr>
+            <th>FPR (alpha) C.Box</th>
+            <th><output type="textfield" id= "output8" align="center"></output></th>
+            <th><output type="textfield" id="output9" align="center"></output></th>
+        </tr>
+    
+        <tr>
+            <th>FNR (beta) C.Box</th>
+            <th><output type="textfield" id= "output10" align="center"></output></th>
+            <th><output type="textfield" id="output11" align="center"></output></th>
+        </tr>
+    
+        <tr>
+            <th>NPV 1 C.Box</th>
+            <th><output type="textfield" id= "output12" align="center"></output></th>
+            <th><output type="textfield" id="output13" align="center"></output></th>
+        </tr>
+        
+        <tr>
+            <th>NPV 2 C.Box</th>
+            <th><output type="textfield" id= "npv_lower" align="center"></output></th>
+            <th><output type="textfield" id="npv_upper" align="center"></output></th>
+        </tr>
+    
+        <tr>
+            <th>Positive Liklihood Ratio C.Box</th>
+            <th><output type="textfield" id= "output14" align="center"></output></th>
+            <th><output type="textfield" id="output15" align="center"></output></th>
+        </tr>
+        
+        <tr>
+            <th>Negative Liklihood Ratio C.Box</th>
+            <th><output type="textfield" id= "output16" align="center"></output></th>
+            <th><output type="textfield" id="output17" align="center"></output></th>
+        </tr>
+    </table>
+<br></br>
+ <div id="chart_lines2" align="center" style="width: 1000px;height: 500px; margin:0 auto;"></div>
+<div align="center">
+
+<h3 align="center">PPV and NPV</h3>
+
+<table class="columns">
+      <tr>
+        <td><div id="chart_lines3" align="center" style="border: 0px solid #ccc"></div></td>
+        <td><div id="chart_lines4" align="center" style="border: 0px solid #ccc"></div></td>
+      </tr>
+    </table> 
+<h3 align="center">Icon Aray</h3>  
+<iframe id="iFrame" src='http://www.iconarray.com/pictographs/embed?axis_endpoints=0&axis_font=Arial&axis_font_size=12&axis_format=%25n+---&axis_labels=1&axis_position=left&background_color=%23ffffff&cell_grouping=normal&cell_height=40&cell_spacing=5&cell_width=22&cols=10&icon=https%3A%2F%2Fs3.amazonaws.com%2Ficon-array%2Ficons%2Fmale.png&legend_font=Arial&legend_font_size=12&legend_position=right&legend_scale=1&risks_attributes%5B0%5D%5Bdescription%5D=out+of+100+people+don%27t+exhibit+this+property&risks_attributes%5B0%5D%5Bdisplay%5D=0&risks_attributes%5B0%5D%5Bhex%5D=%23DCDCDC&risks_attributes%5B1%5D%5Bdescription%5D=out+of+100+people+exhibit+this+property&risks_attributes%5B1%5D%5Bdisplay%5D=1&risks_attributes%5B1%5D%5Bhex%5D=%2311AA89&risks_attributes%5B1%5D%5Bvalue%5D=99&rows=10&title_alignment=left&title_font=Helvetica&title_font_size=18' type='text/html' width='811' height='545' scrolling='no' frameborder='0'></iframe>    
+</div>
+
+</body>
+</html>
+
